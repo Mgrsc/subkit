@@ -12,6 +12,9 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o subkit cmd/server/main.go && \
     CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o update-rules cmd/update-rules/main.go
 
+RUN mkdir -p /build/config/rules && \
+    ./update-rules || echo "Warning: Failed to download rules during build, will retry at runtime"
+
 FROM alpine:latest
 
 WORKDIR /app

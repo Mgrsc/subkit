@@ -18,8 +18,9 @@ const (
 )
 
 type Updater struct {
-	interval time.Duration
-	client   *http.Client
+	interval   time.Duration
+	client     *http.Client
+	onComplete func()
 }
 
 func NewUpdater(intervalDays int) *Updater {
@@ -29,6 +30,10 @@ func NewUpdater(intervalDays int) *Updater {
 			Timeout: 30 * time.Second,
 		},
 	}
+}
+
+func (u *Updater) SetOnComplete(callback func()) {
+	u.onComplete = callback
 }
 
 func (u *Updater) Start() {
@@ -55,6 +60,12 @@ func (u *Updater) updateRuleLists() {
 		logger.Error("Update geosite list failed: %v", err)
 	} else {
 		logger.Info("GeoSite list updated successfully")
+	}
+
+
+	if u.onComplete != nil {
+		logger.Info("[Updater] Notifying update completion...")
+		u.onComplete()
 	}
 }
 

@@ -81,6 +81,16 @@ func NewServer() (*Server, error) {
 	}, nil
 }
 
+
+func (s *Server) ReloadRuleLists() {
+	logger.Info("[Server] Reloading rule lists...")
+	if err := s.assembler.LoadRuleLists(); err != nil {
+		logger.Warn("[Server] Failed to reload rule lists: %v", err)
+	} else {
+		logger.Info("[Server] Rule lists reloaded successfully")
+	}
+}
+
 func (s *Server) buildSubscriptionURL(r *http.Request, configID string) string {
 	host := r.Host
 	if host == "" {

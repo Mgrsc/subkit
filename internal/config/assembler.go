@@ -7,6 +7,7 @@ import (
 	"subkit/internal/logger"
 	"os"
 	"strings"
+	"sync"
 
 	"subkit/internal/converter"
 	"subkit/internal/llm"
@@ -21,6 +22,8 @@ type Assembler struct {
 	geoipFiles      []string
 	geositeBaseURL  string
 	geositeFiles    []string
+	rulesMu         sync.RWMutex
+	rulesLoaded     bool
 }
 
 func NewAssembler() (*Assembler, error) {
@@ -46,6 +49,9 @@ func NewAssembler() (*Assembler, error) {
 }
 
 func (a *Assembler) LoadRuleLists() error {
+	a.rulesMu.Lock()
+	defer a.rulesMu.Unlock()
+
 	geoipData, err := os.ReadFile("config/rules/geoip_files_yaml.txt")
 	if err == nil {
 		a.geoipBaseURL, a.geoipFiles = parseFilteredRuleList(string(geoipData), "geoip")
@@ -62,7 +68,19 @@ func (a *Assembler) LoadRuleLists() error {
 		logger.Warn("[Assembler] Failed to load geosite_files_yaml.txt: %v", err)
 	}
 
+	a.rulesLoaded = true
 	return nil
+}
+
+func (a *Assembler) ensureRulesLoaded() {
+	a.rulesMu.RLock()
+	loaded := a.rulesLoaded
+	a.rulesMu.RUnlock()
+
+	if !loaded {
+		logger.Info("[Assembler] Rules not loaded yet, loading now...")
+		a.LoadRuleLists()
+	}
 }
 
 func parseFilteredRuleList(content string, ruleType string) (baseURL string, files []string) {
@@ -214,12 +232,23 @@ func (a *Assembler) generateProxyGroups(proxiesYAML, customRequirements string) 
 }
 
 func (a *Assembler) generateRules(proxyGroupsYAML, customRequirements string) (string, error) {
+	// Ensure rules are loaded before generating
+	a.ensureRulesLoaded()
+
+	// Safely read rule lists
+	a.rulesMu.RLock()
+	geoipBaseURL := a.geoipBaseURL
+	geoipFiles := a.geoipFiles
+	geositeBaseURL := a.geositeBaseURL
+	geositeFiles := a.geositeFiles
+	a.rulesMu.RUnlock()
+
 	return a.llmClient.GenerateRules(
 		proxyGroupsYAML,
-		a.geoipBaseURL,
-		a.geoipFiles,
-		a.geositeBaseURL,
-		a.geositeFiles,
+		geoipBaseURL,
+		geoipFiles,
+		geositeBaseURL,
+		geositeFiles,
 		customRequirements,
 	)
 }

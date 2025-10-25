@@ -33,6 +33,10 @@ func main() {
 
 	logger.Info("Starting rule list updater (2-day interval)...")
 	updater := scheduler.NewUpdater(2)
+
+	updater.SetOnComplete(func() {
+		srv.ReloadRuleLists()
+	})
 	updater.Start()
 
 	logger.Info("Initializing rate limiter...")
