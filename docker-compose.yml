@@ -1,0 +1,28 @@
+services:
+  subkit:
+    image: ghcr.io/mgrsc/subkit:latest
+    container_name: subkit
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - LLM_BASE_URL=${LLM_BASE_URL:-https://api.openai.com/v1}
+      - LLM_API_KEY=${LLM_API_KEY}
+      - LLM_MODEL=${LLM_MODEL:-gpt-5-mini}
+      - LLM_TIMEOUT=${LLM_TIMEOUT:-120s}
+    volumes:
+      - ./config/rules:/app/config/rules
+      - ./config/prompts:/app/config/prompts
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - subkit-network
+
+networks:
+  subkit-network:
+    driver: bridge

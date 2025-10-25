@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subkit - Proxy Converter</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #faf9f5 0%, #e3dacc 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: #f0eee6;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(38, 38, 36, 0.15);
+            max-width: 800px;
+            width: 100%;
+            padding: 40px;
+        }
+        h1 {
+            color: #262624;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+        .subtitle {
+            color: #766e63;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #e3dacc;
+        }
+        .tab {
+            padding: 12px 24px;
+            background: #e3dacc;
+            border: 2px solid #e3dacc;
+            border-bottom: none;
+            border-radius: 8px 8px 0 0;
+            cursor: pointer;
+            font-size: 16px;
+            color: #766e63;
+            font-weight: 500;
+            transition: all 0.3s;
+            margin-bottom: -2px;
+        }
+        .tab:hover {
+            background: #d9cdb8;
+            color: #262624;
+        }
+        .tab.active {
+            background: #f0eee6;
+            color: #d97757;
+            border-color: #d97757;
+            border-bottom: 2px solid #f0eee6;
+            font-weight: 600;
+            box-shadow: 0 -2px 8px rgba(217, 119, 87, 0.2);
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #262624;
+            font-weight: 500;
+        }
+        textarea, input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e3dacc;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: monospace;
+            transition: border-color 0.3s;
+            background: #faf9f5;
+            color: #262624;
+        }
+        textarea {
+            min-height: 200px;
+            resize: vertical;
+        }
+        textarea:focus, input:focus {
+            outline: none;
+            border-color: #d97757;
+        }
+        button {
+            background: #d97757;
+            color: #faf9f5;
+            border: none;
+            padding: 14px 32px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            width: 100%;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(217, 119, 87, 0.4);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .progress-container {
+            margin-top: 20px;
+            display: none;
+        }
+        .progress-container.show {
+            display: block;
+        }
+        .progress-steps {
+            margin-bottom: 15px;
+        }
+        .progress-step {
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            background: #faf9f5;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            border: 1px solid #e3dacc;
+        }
+        .progress-step.active {
+            background: #fff5f0;
+            color: #d97757;
+            border-color: #d97757;
+        }
+        .progress-step.completed {
+            background: #f0f8f4;
+            color: #4a7c59;
+            border-color: #9cc3a9;
+        }
+        .progress-step.error {
+            background: #fff0f0;
+            color: #c94646;
+            border-color: #e89b9b;
+        }
+        .progress-icon {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 16px;
+            background: #faf9f5;
+            border-radius: 8px;
+            display: none;
+            border: 2px solid #e3dacc;
+        }
+        .result.show {
+            display: block;
+        }
+        .result.success {
+            background: #f0f8f4;
+            border: 2px solid #9cc3a9;
+        }
+        .result.error {
+            background: #fff0f0;
+            border: 2px solid #e89b9b;
+        }
+        .result-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #262624;
+        }
+        .result-content {
+            font-family: monospace;
+            font-size: 14px;
+            word-break: break-all;
+            color: #262624;
+        }
+        .copy-btn {
+            margin-top: 10px;
+            padding: 8px 16px;
+            font-size: 14px;
+            width: auto;
+        }
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid currentColor;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .checkmark {
+            color: #4a7c59;
+        }
+        .error-mark {
+            color: #c94646;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Subkit</h1>
+        <p class="subtitle">Convert proxy nodes to Mihomo configuration</p>
+
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('subscribe')">Subscription</button>
+            <button class="tab" onclick="switchTab('uri')">URI Converter</button>
+        </div>
+
+        <div id="subscribe" class="tab-content active">
+            <div class="form-group">
+                <label>Subscription URL or Content</label>
+                <textarea id="subInput" placeholder="Enter subscription URL or base64 content or YAML content..."></textarea>
+            </div>
+            <div class="form-group">
+                <label>Custom Requirements (Optional)</label>
+                <input type="text" id="customReq" placeholder="e.g., Add ad blocking rules, Include Netflix streaming rules, Add Telegram rules...">
+                <small style="color: #766e63; display: block; margin-top: 5px;">Tell the AI what specific rules you want (ad blocking, streaming services, messaging apps, etc.)</small>
+            </div>
+            <button onclick="convertSubscription()" id="subBtn">
+                <span id="subBtnText">Convert</span>
+            </button>
+
+            <div id="subProgress" class="progress-container">
+                <div class="progress-steps">
+                    <div class="progress-step" id="step-parse">
+                        <div class="progress-icon">⏳</div>
+                        <span>Parsing input and extracting nodes</span>
+                    </div>
+                    <div class="progress-step" id="step-groups">
+                        <div class="progress-icon">⏳</div>
+                        <span>Generating proxy groups with LLM</span>
+                    </div>
+                    <div class="progress-step" id="step-rules">
+                        <div class="progress-icon">⏳</div>
+                        <span>Generating routing rules with LLM</span>
+                    </div>
+                    <div class="progress-step" id="step-assemble">
+                        <div class="progress-icon">⏳</div>
+                        <span>Assembling final configuration</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="subResult" class="result"></div>
+        </div>
+
+        <div id="uri" class="tab-content">
+            <div class="form-group">
+                <label>Proxy URI (vless/vmess/trojan/ss/ssr/hysteria/hysteria2/tuic)</label>
+                <textarea id="uriInput" placeholder="vless://...&#10;vmess://...&#10;trojan://..."></textarea>
+            </div>
+            <div class="form-group">
+                <label>Custom Requirements (Optional)</label>
+                <input type="text" id="uriCustomReq" placeholder="e.g., Add ad blocking rules, Include Netflix streaming rules, Add Telegram rules...">
+                <small style="color: #766e63; display: block; margin-top: 5px;">Tell the AI what specific rules you want (ad blocking, streaming services, messaging apps, etc.)</small>
+            </div>
+            <button onclick="convertURI()" id="uriBtn">
+                <span id="uriBtnText">Parse</span>
+            </button>
+
+            <div id="uriProgress" class="progress-container">
+                <div class="progress-steps">
+                    <div class="progress-step" id="uri-step-parse">
+                        <div class="progress-icon">⏳</div>
+                        <span>Parsing proxy URIs</span>
+                    </div>
+                    <div class="progress-step" id="uri-step-groups">
+                        <div class="progress-icon">⏳</div>
+                        <span>Generating proxy groups with LLM</span>
+                    </div>
+                    <div class="progress-step" id="uri-step-rules">
+                        <div class="progress-icon">⏳</div>
+                        <span>Generating routing rules with LLM</span>
+                    </div>
+                    <div class="progress-step" id="uri-step-assemble">
+                        <div class="progress-icon">⏳</div>
+                        <span>Assembling final configuration</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="uriResult" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+            event.target.classList.add('active');
+            document.getElementById(tab).classList.add('active');
+        }
+
+        async function convertSubscription() {
+            const input = document.getElementById('subInput').value.trim();
+            const customReq = document.getElementById('customReq').value.trim();
+            const result = document.getElementById('subResult');
+            const progress = document.getElementById('subProgress');
+            const btn = document.getElementById('subBtn');
+
+            if (!input) {
+                showResult(result, 'error', 'Please enter subscription URL or content');
+                return;
+            }
+
+            btn.disabled = true;
+            result.classList.remove('show');
+            progress.classList.add('show');
+            resetSteps('step-');
+
+            const payload = { input };
+            if (customReq) {
+                payload.custom_requirements = customReq;
+            }
+
+            await convertWithProgress('/api/convert-stream', payload, 'step-', result, (data, headers) => {
+                const rateLimitInfo = headers.get('X-RateLimit-Remaining')
+                    ? `<small style="color: #766e63;">Requests remaining today: ${headers.get('X-RateLimit-Remaining')}/${headers.get('X-RateLimit-Limit')}</small>`
+                    : '';
+                const safeUrl = escapeHtml(data.url);
+                const encodedUrl = encodeURIComponent(data.url);
+                showResult(result, 'success',
+                    `<div class="result-title">✅ Conversion Successful!</div>
+                     <div class="result-content">${safeUrl}</div>
+                     <button class="copy-btn" data-url="${encodedUrl}" onclick="copyText(event)">Copy URL</button>
+                     <div style="margin-top: 10px;">${rateLimitInfo}</div>`
+                );
+            });
+
+            btn.disabled = false;
+        }
+
+        async function convertURI() {
+            const input = document.getElementById('uriInput').value.trim();
+            const customReq = document.getElementById('uriCustomReq').value.trim();
+            const result = document.getElementById('uriResult');
+            const progress = document.getElementById('uriProgress');
+            const btn = document.getElementById('uriBtn');
+
+            if (!input) {
+                showResult(result, 'error', 'Please enter proxy URI(s)');
+                return;
+            }
+
+            btn.disabled = true;
+            result.classList.remove('show');
+            progress.classList.add('show');
+            resetSteps('uri-step-');
+
+            const uris = input.split('\n').map(u => u.trim()).filter(u => u);
+            const payload = { uris };
+            if (customReq) {
+                payload.custom_requirements = customReq;
+            }
+
+            await convertWithProgress('/api/convert-stream', payload, 'uri-step-', result, (data, headers) => {
+                const rateLimitInfo = headers.get('X-RateLimit-Remaining')
+                    ? `<small style="color: #766e63;">Requests remaining today: ${headers.get('X-RateLimit-Remaining')}/${headers.get('X-RateLimit-Limit')}</small>`
+                    : '';
+                const safeUrl = escapeHtml(data.url);
+                const encodedUrl = encodeURIComponent(data.url);
+                showResult(result, 'success',
+                    `<div class="result-title">✅ Parsed ${uris.length} node(s) successfully!</div>
+                     <div class="result-content">${safeUrl}</div>
+                     <button class="copy-btn" data-url="${encodedUrl}" onclick="copyText(event)">Copy URL</button>
+                     <div style="margin-top: 10px;">${rateLimitInfo}</div>`
+                );
+            });
+
+            btn.disabled = false;
+        }
+
+        function resetSteps(prefix) {
+            ['parse', 'groups', 'rules', 'assemble'].forEach(step => {
+                const el = document.getElementById(prefix + step);
+                el.className = 'progress-step';
+                el.querySelector('.progress-icon').innerHTML = '⏳';
+            });
+        }
+
+        async function simulateProgress(prefix, apiCall) {
+            const steps = ['parse', 'groups', 'rules', 'assemble'];
+            const timings = [500, 2000, 2000, 500];
+
+            for (let i = 0; i < steps.length; i++) {
+                const el = document.getElementById(prefix + steps[i]);
+                el.classList.add('active');
+                el.querySelector('.progress-icon').innerHTML = '<div class="loading"></div>';
+
+                if (i === 0) {
+                    await sleep(timings[i]);
+                    el.classList.remove('active');
+                    el.classList.add('completed');
+                    el.querySelector('.progress-icon').innerHTML = '✓';
+                } else if (i === 1) {
+                    await apiCall();
+                    break;
+                }
+            }
+        }
+
+        function completeAllSteps(prefix) {
+            ['parse', 'groups', 'rules', 'assemble'].forEach(step => {
+                const el = document.getElementById(prefix + step);
+                el.className = 'progress-step completed';
+                el.querySelector('.progress-icon').innerHTML = '✓';
+            });
+        }
+
+        function errorAllSteps(prefix) {
+            ['parse', 'groups', 'rules', 'assemble'].forEach(step => {
+                const el = document.getElementById(prefix + step);
+                if (el.classList.contains('active')) {
+                    el.className = 'progress-step error';
+                    el.querySelector('.progress-icon').innerHTML = '✗';
+                }
+            });
+        }
+
+        function showResult(element, type, content) {
+            element.className = `result show ${type}`;
+            element.innerHTML = content;
+        }
+
+        function copyText(event) {
+            const btn = event.currentTarget || event.target;
+            if (!btn) return;
+            const encoded = btn.dataset.url || '';
+            const text = decodeURIComponent(encoded);
+
+            const onSuccess = () => {
+                const originalText = btn.textContent;
+                btn.textContent = 'Copied!';
+                btn.style.background = '#4a7c59';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '';
+                }, 2000);
+            };
+
+            const onFailure = (err) => {
+                alert('Copy failed: ' + err.message);
+            };
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(onSuccess).catch(onFailure);
+            } else {
+                // Fallback for environments without Clipboard API support
+                const tempInput = document.createElement('textarea');
+                tempInput.value = text;
+                tempInput.style.position = 'fixed';
+                tempInput.style.opacity = '0';
+                document.body.appendChild(tempInput);
+                tempInput.focus();
+                tempInput.select();
+                try {
+                    const successful = document.execCommand('copy');
+                    if (successful) {
+                        onSuccess();
+                    } else {
+                        onFailure(new Error('execCommand failed'));
+                    }
+                } catch (err) {
+                    onFailure(err);
+                } finally {
+                    document.body.removeChild(tempInput);
+                }
+            }
+        }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Convert with real-time progress using SSE
+        async function convertWithProgress(endpoint, payload, prefix, resultEl, onSuccess) {
+            return new Promise((resolve, reject) => {
+                fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                }).then(async response => {
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+                    let buffer = '';
+                    let rateLimitHeaders = {
+                        get: (key) => response.headers.get(key)
+                    };
+
+                    const processText = async ({ done, value }) => {
+                        if (done) {
+                            resolve();
+                            return;
+                        }
+
+                        buffer += decoder.decode(value, { stream: true });
+                        const lines = buffer.split('\n');
+                        buffer = lines.pop();
+
+                        for (const line of lines) {
+                            if (line.startsWith('data: ')) {
+                                const jsonText = line.slice(6).trim();
+                                if (!jsonText) {
+                                    continue;
+                                }
+
+                                let data;
+                                try {
+                                    data = JSON.parse(jsonText);
+                                } catch (err) {
+                                    console.error('Failed to parse progress data:', err);
+                                    continue;
+                                }
+
+                                if (data.step) {
+                                    updateStepProgress(prefix, data.step);
+                                } else if (data.error) {
+                                    errorAllSteps(prefix);
+                                    showResult(resultEl, 'error', '❌ ' + data.error);
+                                    resolve();
+                                    return;
+                                } else if (data.url) {
+                                    completeAllSteps(prefix);
+                                    onSuccess(data, rateLimitHeaders);
+                                    resolve();
+                                    return;
+                                }
+                            }
+                        }
+
+                        return reader.read().then(processText);
+                    };
+
+                    return reader.read().then(processText);
+                }).catch(err => {
+                    errorAllSteps(prefix);
+                    showResult(resultEl, 'error', '❌ Network error: ' + err.message);
+                    resolve();
+                });
+            });
+        }
+
+        function updateStepProgress(prefix, step) {
+            const steps = ['parse', 'groups', 'rules', 'assemble'];
+            const stepIndex = steps.indexOf(step);
+
+            if (stepIndex === -1) return;
+
+            for (let i = 0; i < stepIndex; i++) {
+                const el = document.getElementById(prefix + steps[i]);
+                el.classList.remove('active');
+                el.classList.add('completed');
+                el.querySelector('.progress-icon').innerHTML = '✓';
+            }
+
+            const currentEl = document.getElementById(prefix + step);
+            currentEl.classList.add('active');
+            currentEl.classList.remove('completed');
+            currentEl.querySelector('.progress-icon').innerHTML = '<div class="loading"></div>';
+
+            if (step === 'assemble') {
+                setTimeout(() => {
+                    currentEl.classList.remove('active');
+                    currentEl.classList.add('completed');
+                    currentEl.querySelector('.progress-icon').innerHTML = '✓';
+                }, 100);
+            }
+        }
+    </script>
+</body>
+</html>

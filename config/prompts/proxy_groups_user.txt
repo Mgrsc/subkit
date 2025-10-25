@@ -1,0 +1,7 @@
+<Available proxies>
+{PROXIES}
+</Available proxies>
+
+<CUSTOM_REQUIREMENTS>
+{CUSTOM_REQUIREMENTS}
+</CUSTOM_REQUIREMENTS>

@@ -1,0 +1,17 @@
+<proxy_group_configuration>
+{PROXY_GROUPS}
+</proxy_group_configuration>
+
+<available_GeoIP>
+Base URL (needs to be concatenated into a complete link)： https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/
+{GEOIP_FILES}
+</available_GeoIP>
+
+<Available_GeoSite>
+Base URL (needs to be concatenated into a complete link)： https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/
+{GEOSITE_FILES}
+</Available_GeoSite>
+
+<CUSTOM_REQUIREMENTS>
+{CUSTOM_REQUIREMENTS}
+</CUSTOM_REQUIREMENTS>

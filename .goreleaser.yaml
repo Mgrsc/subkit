@@ -1,0 +1,154 @@
+# GoReleaser configuration for Subkit
+# https://goreleaser.com
+
+version: 2
+
+# Project metadata
+project_name: subkit
+
+# Build configuration
+builds:
+  # Main server binary
+  - id: server
+    main: ./cmd/server/main.go
+    binary: subkit
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    # Optimize binary size
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+    # Build tags for optimization
+    tags:
+      - netgo
+    flags:
+      - -trimpath
+
+  # Update rules utility
+  - id: update-rules
+    main: ./cmd/update-rules/main.go
+    binary: update-rules
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+    tags:
+      - netgo
+    flags:
+      - -trimpath
+
+# Archive customization
+archives:
+  - id: default
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    # Include additional files in archive
+    files:
+      - LICENSE*
+      - README*
+      - .env.example
+      - config/**/*
+      - web/**/*
+
+# Checksum generation
+checksum:
+  name_template: 'checksums.txt'
+  algorithm: sha256
+
+# Snapshot builds (for non-tag builds)
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+# Changelog generation
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^ci:'
+      - '^chore:'
+      - 'merge conflict'
+      - Merge pull request
+      - Merge remote-tracking branch
+      - Merge branch
+  groups:
+    - title: '🚀 New Features'
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: '🐛 Bug Fixes'
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: '📝 Documentation'
+      regexp: '^.*?docs(\([[:word:]]+\))??!?:.+$'
+      order: 2
+    - title: '⚡ Performance Improvements'
+      regexp: '^.*?perf(\([[:word:]]+\))??!?:.+$'
+      order: 3
+    - title: Other Changes
+      order: 999
+
+# GitHub Release
+release:
+  github:
+    owner: mgrsc
+    name: subkit
+  draft: false
+  prerelease: auto
+  mode: replace
+  header: |
+    ## Subkit {{ .Tag }}
+
+    Lightweight, high-performance proxy subscription converter for Mihomo/Clash with LLM-powered configuration generation.
+
+    ### 📦 Installation
+
+    Download the appropriate archive for your platform below, extract it, and run the binary.
+
+    ### 🐳 Docker
+
+    ```bash
+    docker pull ghcr.io/mgrsc/subkit:{{ .Tag }}
+    ```
+
+    ### ✨ What's Changed
+  footer: |
+    ---
+
+    **Full Changelog**: https://github.com/mgrsc/subkit/compare/{{ .PreviousTag }}...{{ .Tag }}
+
+    ### 📚 Documentation
+
+    - [Quick Start Guide](https://github.com/mgrsc/subkit#quick-start)
+    - [Configuration](https://github.com/mgrsc/subkit#configuration)
+    - [API Documentation](https://github.com/mgrsc/subkit#api-endpoints)
+
+# Announce (optional - can be extended later)
+announce:
+  skip: false

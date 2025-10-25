@@ -1,0 +1,82 @@
+# Environment variables
+.env
+
+# Build artifacts
+bin/
+/subkit
+/update-rules
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# GoReleaser output
+dist/
+
+# Test binaries
+*.test
+
+# Output of go coverage tool
+*.out
+coverage.html
+
+# Dependency directories
+vendor/
+
+# IDE - VSCode
+.vscode/
+*.code-workspace
+
+# IDE - JetBrains
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# IDE - Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Log files
+*.log
+*.log.*
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.*.sw?
+
+# Cache directories
+*.cache
+.cache/
+
+# Debug files
+debug
+debug.test
+__debug_bin
+
+# Air (Live reload tool)
+tmp/
+.air.toml
+
+# Config rules (generated/updated by server)
+config/rules/geoip_list.txt
+config/rules/geosite_list.txt
+
+example/
+
+!cmd/update-rules/
