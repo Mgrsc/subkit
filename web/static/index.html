@@ -224,6 +224,52 @@
         .error-mark {
             color: #c94646;
         }
+        .nodes-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            font-size: 13px;
+        }
+        .nodes-table th {
+            background: #e3dacc;
+            padding: 10px;
+            text-align: left;
+            font-weight: 600;
+            color: #262624;
+            border-bottom: 2px solid #d9cdb8;
+        }
+        .nodes-table td {
+            padding: 8px 10px;
+            border-bottom: 1px solid #e3dacc;
+            color: #262624;
+        }
+        .nodes-table tr:hover {
+            background: #fff5f0;
+        }
+        .node-type {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .node-type-vless { background: #e0f2fe; color: #0369a1; }
+        .node-type-vmess { background: #ddd6fe; color: #6d28d9; }
+        .node-type-trojan { background: #fce7f3; color: #be185d; }
+        .node-type-ss { background: #d1fae5; color: #047857; }
+        .node-type-ssr { background: #fed7aa; color: #c2410c; }
+        .node-type-hysteria { background: #fef3c7; color: #a16207; }
+        .node-type-hysteria2 { background: #fef3c7; color: #a16207; }
+        .node-type-tuic { background: #e0e7ff; color: #4338ca; }
+        .nodes-summary {
+            padding: 12px;
+            background: #fff5f0;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-weight: 600;
+            color: #d97757;
+        }
     </style>
 </head>
 <body>
@@ -232,49 +278,11 @@
         <p class="subtitle">Convert proxy nodes to Mihomo configuration</p>
 
         <div class="tabs">
-            <button class="tab active" onclick="switchTab('subscribe')">Subscription</button>
-            <button class="tab" onclick="switchTab('uri')">URI Converter</button>
+            <button class="tab active" onclick="switchTab('uri')">URI Converter</button>
+            <button class="tab" onclick="switchTab('subscribe')">Subscription</button>
         </div>
 
-        <div id="subscribe" class="tab-content active">
-            <div class="form-group">
-                <label>Subscription URL or Content</label>
-                <textarea id="subInput" placeholder="Enter subscription URL or base64 content or YAML content..."></textarea>
-            </div>
-            <div class="form-group">
-                <label>Custom Requirements (Optional)</label>
-                <input type="text" id="customReq" placeholder="e.g., Add ad blocking rules, Include Netflix streaming rules, Add Telegram rules...">
-                <small style="color: #766e63; display: block; margin-top: 5px;">Tell the AI what specific rules you want (ad blocking, streaming services, messaging apps, etc.)</small>
-            </div>
-            <button onclick="convertSubscription()" id="subBtn">
-                <span id="subBtnText">Convert</span>
-            </button>
-
-            <div id="subProgress" class="progress-container">
-                <div class="progress-steps">
-                    <div class="progress-step" id="step-parse">
-                        <div class="progress-icon">⏳</div>
-                        <span>Parsing input and extracting nodes</span>
-                    </div>
-                    <div class="progress-step" id="step-groups">
-                        <div class="progress-icon">⏳</div>
-                        <span>Generating proxy groups with LLM</span>
-                    </div>
-                    <div class="progress-step" id="step-rules">
-                        <div class="progress-icon">⏳</div>
-                        <span>Generating routing rules with LLM</span>
-                    </div>
-                    <div class="progress-step" id="step-assemble">
-                        <div class="progress-icon">⏳</div>
-                        <span>Assembling final configuration</span>
-                    </div>
-                </div>
-            </div>
-
-            <div id="subResult" class="result"></div>
-        </div>
-
-        <div id="uri" class="tab-content">
+        <div id="uri" class="tab-content active">
             <div class="form-group">
                 <label>Proxy URI (vless/vmess/trojan/ss/ssr/hysteria/hysteria2/tuic)</label>
                 <textarea id="uriInput" placeholder="vless://...&#10;vmess://...&#10;trojan://..."></textarea>
@@ -311,6 +319,18 @@
 
             <div id="uriResult" class="result"></div>
         </div>
+
+        <div id="subscribe" class="tab-content">
+            <div class="form-group">
+                <label>Subscription URL or Content</label>
+                <textarea id="subInput" placeholder="Enter subscription URL or base64 content or YAML content..."></textarea>
+            </div>
+            <button onclick="extractNodes()" id="subBtn">
+                <span id="subBtnText">Extract Nodes</span>
+            </button>
+
+            <div id="subResult" class="result"></div>
+        </div>
     </div>
 
     <script>
@@ -322,43 +342,81 @@
             document.getElementById(tab).classList.add('active');
         }
 
-        async function convertSubscription() {
+        async function extractNodes() {
             const input = document.getElementById('subInput').value.trim();
-            const customReq = document.getElementById('customReq').value.trim();
             const result = document.getElementById('subResult');
-            const progress = document.getElementById('subProgress');
             const btn = document.getElementById('subBtn');
 
             if (!input) {
-                showResult(result, 'error', 'Please enter subscription URL or content');
+                showResult(result, 'error', '❌ Please enter subscription URL or content');
                 return;
             }
 
             btn.disabled = true;
             result.classList.remove('show');
-            progress.classList.add('show');
-            resetSteps('step-');
+            showResult(result, '', '<div style="text-align: center; padding: 20px;"><div class="loading" style="margin: 0 auto;"></div><div style="margin-top: 10px;">Extracting nodes...</div></div>');
 
-            const payload = { input };
-            if (customReq) {
-                payload.custom_requirements = customReq;
+            try {
+                const response = await fetch('/api/extract-nodes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ input })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    showResult(result, 'error', '❌ ' + (data.error || 'Extraction failed'));
+                    return;
+                }
+
+                displayNodes(result, data.nodes, data.count);
+            } catch (err) {
+                showResult(result, 'error', '❌ Network error: ' + err.message);
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        function displayNodes(resultEl, nodes, count) {
+            if (!nodes || nodes.length === 0) {
+                showResult(resultEl, 'error', '❌ No nodes found');
+                return;
             }
 
-            await convertWithProgress('/api/convert-stream', payload, 'step-', result, (data, headers) => {
-                const rateLimitInfo = headers.get('X-RateLimit-Remaining')
-                    ? `<small style="color: #766e63;">Requests remaining today: ${headers.get('X-RateLimit-Remaining')}/${headers.get('X-RateLimit-Limit')}</small>`
-                    : '';
-                const safeUrl = escapeHtml(data.url);
-                const encodedUrl = encodeURIComponent(data.url);
-                showResult(result, 'success',
-                    `<div class="result-title">✅ Conversion Successful!</div>
-                     <div class="result-content">${safeUrl}</div>
-                     <button class="copy-btn" data-url="${encodedUrl}" onclick="copyText(event)">Copy URL</button>
-                     <div style="margin-top: 10px;">${rateLimitInfo}</div>`
-                );
+            let html = `
+                <div class="result-title">✅ Successfully extracted ${count} node(s)</div>
+                <div class="nodes-summary">Total: ${count} nodes</div>
+                <table class="nodes-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Type</th>
+                            <th>Server</th>
+                            <th>Port</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            nodes.forEach(node => {
+                const type = (node.type || 'unknown').toLowerCase();
+                html += `
+                    <tr>
+                        <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(node.name || 'N/A')}">${escapeHtml(node.name || 'N/A')}</td>
+                        <td><span class="node-type node-type-${type}">${type}</span></td>
+                        <td>${escapeHtml(node.server || 'N/A')}</td>
+                        <td>${node.port || 'N/A'}</td>
+                    </tr>
+                `;
             });
 
-            btn.disabled = false;
+            html += `
+                    </tbody>
+                </table>
+            `;
+
+            showResult(resultEl, 'success', html);
         }
 
         async function convertURI() {

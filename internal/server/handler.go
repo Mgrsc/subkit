@@ -44,6 +44,15 @@ type ErrorResponse struct {
 	Error string `json:"error"`
 }
 
+type ExtractNodesRequest struct {
+	Input string `json:"input"`
+}
+
+type ExtractNodesResponse struct {
+	Nodes []*converter.ProxyNode `json:"nodes"`
+	Count int                    `json:"count"`
+}
+
 func NewServer() (*Server, error) {
 	assembler, err := config.NewAssembler()
 	if err != nil {
@@ -332,4 +341,52 @@ func (s *Server) writeError(w http.ResponseWriter, message string, status int) {
 	w.Header().Set("Content-Type", contentTypeJSON)
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(ErrorResponse{Error: message})
+}
+
+// HandleExtractNodes extracts proxy nodes from subscription without LLM processing
+func (s *Server) HandleExtractNodes(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		s.writeError(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	logger.Info("[Server] Received extract nodes request from %s", r.RemoteAddr)
+	var req ExtractNodesRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.writeError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.Input == "" {
+		s.writeError(w, "input required", http.StatusBadRequest)
+		return
+	}
+
+	var nodes []*converter.ProxyNode
+	var err error
+
+	logger.Info("[Server] Processing input (length: %d)", len(req.Input))
+	if strings.HasPrefix(req.Input, "http://") || strings.HasPrefix(req.Input, "https://") {
+		logger.Info("[Server] Detected URL input, extracting from URL...")
+		nodes, err = s.extractor.ExtractFromURL(req.Input)
+	} else {
+		logger.Info("[Server] Extracting from content...")
+		nodes, err = s.extractor.ExtractFromContent(req.Input)
+	}
+
+	if err != nil {
+		logger.Info("[Server] Extraction failed: %v", err)
+		s.writeError(w, fmt.Sprintf("extract nodes failed: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	logger.Info("[Server] Successfully extracted %d nodes", len(nodes))
+
+	resp := ExtractNodesResponse{
+		Nodes: nodes,
+		Count: len(nodes),
+	}
+
+	w.Header().Set("Content-Type", contentTypeJSON)
+	json.NewEncoder(w).Encode(resp)
 }

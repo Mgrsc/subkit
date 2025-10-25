@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -18,6 +19,7 @@ type Client struct {
 	apiKey                   string
 	client                   *http.Client
 	model                    string
+	temperature              float64
 	proxyGroupsSystemPrompt  string
 	proxyGroupsUserPrompt    string
 	rulesSystemPrompt        string
@@ -30,8 +32,9 @@ type ChatMessage struct {
 }
 
 type ChatRequest struct {
-	Model    string        `json:"model"`
-	Messages []ChatMessage `json:"messages"`
+	Model       string        `json:"model"`
+	Messages    []ChatMessage `json:"messages"`
+	Temperature float64       `json:"temperature"`
 }
 
 type ChatResponse struct {
@@ -54,6 +57,18 @@ func NewClient() (*Client, error) {
 	model := os.Getenv("LLM_MODEL")
 	if model == "" {
 		model = "gpt-5-mini"
+	}
+
+	temperature := 0.5
+	tempStr := os.Getenv("LLM_TEMPERATURE")
+	if tempStr != "" {
+		if temp, err := strconv.ParseFloat(tempStr, 64); err == nil {
+			temperature = temp
+			logger.Info("[LLM] Using custom temperature: %.2f", temperature)
+		} else {
+			logger.Warn("[LLM] Invalid LLM_TEMPERATURE format, using default: 0.5")
+			temperature = 0.5
+		}
 	}
 
 	timeoutStr := os.Getenv("LLM_TIMEOUT")
@@ -103,6 +118,7 @@ func NewClient() (*Client, error) {
 		baseURL:                 baseURL,
 		apiKey:                  apiKey,
 		model:                   model,
+		temperature:             temperature,
 		proxyGroupsSystemPrompt: proxyGroupsSystemPrompt,
 		proxyGroupsUserPrompt:   proxyGroupsUserPrompt,
 		rulesSystemPrompt:       rulesSystemPrompt,
@@ -164,10 +180,11 @@ func getDefaultRulesUserPrompt() string {
 }
 
 func (c *Client) Chat(messages []ChatMessage) (string, error) {
-	logger.Info("[LLM] Sending request to %s with model %s", c.baseURL, c.model)
+	logger.Info("[LLM] Sending request to %s with model %s (temperature: %.1f)", c.baseURL, c.model, c.temperature)
 	reqBody := ChatRequest{
-		Model:    c.model,
-		Messages: messages,
+		Model:       c.model,
+		Messages:    messages,
+		Temperature: c.temperature,
 	}
 
 	jsonData, err := json.Marshal(reqBody)

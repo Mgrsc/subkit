@@ -10,6 +10,13 @@ import (
 
 func main() {
 	logger.Init(); //(log.LstdFlags | log.Lshortfile)
+
+	if _, err := os.Stat("config"); os.IsNotExist(err) {
+		logger.Error("ERROR: This tool must be run from the project root directory")
+		logger.Error("Usage: go run cmd/update-rules/main.go")
+		os.Exit(1)
+	}
+
 	logger.Info("========================================")
 	logger.Info("   Subkit - Manual Rules Updater")
 	logger.Info("========================================")

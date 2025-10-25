@@ -74,8 +74,8 @@ tmp/
 .air.toml
 
 # Config rules (generated/updated by server)
-config/rules/geoip_list.txt
-config/rules/geosite_list.txt
+config/rules/geoip_files_yaml.txt
+config/rules/geosite_files_yaml.txt
 
 example/
 

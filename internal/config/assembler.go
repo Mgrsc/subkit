@@ -46,35 +46,39 @@ func NewAssembler() (*Assembler, error) {
 }
 
 func (a *Assembler) LoadRuleLists() error {
-	geoipData, err := os.ReadFile("config/rules/geoip_list.txt")
+	geoipData, err := os.ReadFile("config/rules/geoip_files_yaml.txt")
 	if err == nil {
-		a.geoipBaseURL, a.geoipFiles = parseRuleList(string(geoipData))
-		logger.Info("[Assembler] Loaded %d GeoIP rules from %s", len(a.geoipFiles), a.geoipBaseURL)
+		a.geoipBaseURL, a.geoipFiles = parseFilteredRuleList(string(geoipData), "geoip")
+		logger.Info("[Assembler] Loaded %d GeoIP .yaml rules from %s", len(a.geoipFiles), a.geoipBaseURL)
+	} else {
+		logger.Warn("[Assembler] Failed to load geoip_files_yaml.txt: %v", err)
 	}
 
-	geositeData, err := os.ReadFile("config/rules/geosite_list.txt")
+	geositeData, err := os.ReadFile("config/rules/geosite_files_yaml.txt")
 	if err == nil {
-		a.geositeBaseURL, a.geositeFiles = parseRuleList(string(geositeData))
-		logger.Info("[Assembler] Loaded %d GeoSite rules from %s", len(a.geositeFiles), a.geositeBaseURL)
+		a.geositeBaseURL, a.geositeFiles = parseFilteredRuleList(string(geositeData), "geosite")
+		logger.Info("[Assembler] Loaded %d GeoSite .yaml rules from %s", len(a.geositeFiles), a.geositeBaseURL)
+	} else {
+		logger.Warn("[Assembler] Failed to load geosite_files_yaml.txt: %v", err)
 	}
 
 	return nil
 }
 
-func parseRuleList(content string) (baseURL string, files []string) {
+func parseFilteredRuleList(content string, ruleType string) (baseURL string, files []string) {
+	baseURL = fmt.Sprintf("https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/%s", ruleType)
+
 	lines := strings.Split(content, "\n")
+	// First line is the count, skip it
 	for i, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") {
+		if i == 0 {
+			// Skip the count line
 			continue
 		}
 
-		if i == 0 || strings.HasPrefix(line, "BASE_URL:") || strings.HasPrefix(line, "Base URL:") {
-			parts := strings.SplitN(line, ":", 2)
-			if len(parts) == 2 {
-				baseURL = strings.TrimSpace(parts[1])
-				continue
-			}
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
 		}
 
 		files = append(files, line)
