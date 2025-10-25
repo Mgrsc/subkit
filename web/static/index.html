@@ -206,6 +206,24 @@
             font-size: 14px;
             width: auto;
         }
+        .copy-btn-small {
+            padding: 4px 12px;
+            font-size: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+        .copy-btn-small:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+        }
+        .copy-btn-small:active {
+            transform: translateY(0);
+        }
         .loading {
             display: inline-block;
             width: 16px;
@@ -394,19 +412,34 @@
                             <th>Type</th>
                             <th>Server</th>
                             <th>Port</th>
+                            <th>Action</th>
                         </tr>
                     </thead>
                     <tbody>
             `;
 
-            nodes.forEach(node => {
+            const allURIs = [];
+
+            nodes.forEach((item, index) => {
+                const node = item.node || item;
+                const uri = item.uri || '';
+
+                if (uri) {
+                    allURIs.push(uri);
+                }
+
                 const type = (node.type || 'unknown').toLowerCase();
+                const copyId = `copy-uri-${index}`;
+
                 html += `
                     <tr>
                         <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(node.name || 'N/A')}">${escapeHtml(node.name || 'N/A')}</td>
                         <td><span class="node-type node-type-${type}">${type}</span></td>
                         <td>${escapeHtml(node.server || 'N/A')}</td>
                         <td>${node.port || 'N/A'}</td>
+                        <td>
+                            ${uri ? `<button class="copy-btn-small" data-uri="${escapeHtml(uri)}" onclick="copyURIFromButton(this, '${copyId}')"><span id="${copyId}">Copy URI</span></button>` : 'N/A'}
+                        </td>
                     </tr>
                 `;
             });
@@ -415,6 +448,19 @@
                     </tbody>
                 </table>
             `;
+
+            if (allURIs.length > 0) {
+                const uriText = allURIs.join('\n');
+                html += `
+                    <div style="margin-top: 20px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <strong>All Node URIs (${allURIs.length}):</strong>
+                            <button class="copy-btn" id="copy-all-uris-btn" onclick="copyAllURIsFromButton()"><span id="copy-all-btn">Copy All</span></button>
+                        </div>
+                        <textarea id="all-uris-textarea" readonly style="width: 100%; min-height: 150px; font-family: monospace; font-size: 12px; padding: 10px; background: #2a2a2a; color: #e0e0e0; border: 1px solid #444; border-radius: 4px; resize: vertical;">${escapeHtml(uriText)}</textarea>
+                    </div>
+                `;
+            }
 
             showResult(resultEl, 'success', html);
         }
@@ -565,6 +611,138 @@
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+
+        function copyURI(uri, elementId) {
+            const element = document.getElementById(elementId);
+            if (!element) return;
+
+            const onSuccess = () => {
+                const originalText = element.textContent;
+                element.textContent = 'Copied!';
+                element.parentElement.style.background = '#4a7c59';
+                setTimeout(() => {
+                    element.textContent = originalText;
+                    element.parentElement.style.background = '';
+                }, 2000);
+            };
+
+            const onFailure = (err) => {
+                alert('Copy failed: ' + err.message);
+            };
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(uri).then(onSuccess).catch(onFailure);
+            } else {
+                const tempInput = document.createElement('textarea');
+                tempInput.value = uri;
+                tempInput.style.position = 'fixed';
+                tempInput.style.opacity = '0';
+                document.body.appendChild(tempInput);
+                tempInput.focus();
+                tempInput.select();
+                try {
+                    const successful = document.execCommand('copy');
+                    if (successful) {
+                        onSuccess();
+                    } else {
+                        onFailure(new Error('execCommand failed'));
+                    }
+                } catch (err) {
+                    onFailure(err);
+                } finally {
+                    document.body.removeChild(tempInput);
+                }
+            }
+        }
+
+        function copyURIFromButton(button, elementId) {
+            const uri = button.getAttribute('data-uri');
+            if (!uri) return;
+            copyURI(uri, elementId);
+        }
+
+        function copyAllURIsFromButton() {
+            const textarea = document.getElementById('all-uris-textarea');
+            if (!textarea) return;
+            const text = textarea.value;
+            const element = document.getElementById('copy-all-btn');
+            if (!element) return;
+
+            const onSuccess = () => {
+                const originalText = element.textContent;
+                element.textContent = 'Copied!';
+                element.parentElement.style.background = '#4a7c59';
+                setTimeout(() => {
+                    element.textContent = originalText;
+                    element.parentElement.style.background = '';
+                }, 2000);
+            };
+
+            const onFailure = (err) => {
+                alert('Copy failed: ' + err.message);
+            };
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(onSuccess).catch(onFailure);
+            } else {
+                textarea.select();
+                try {
+                    const successful = document.execCommand('copy');
+                    if (successful) {
+                        onSuccess();
+                    } else {
+                        onFailure(new Error('execCommand failed'));
+                    }
+                } catch (err) {
+                    onFailure(err);
+                }
+            }
+        }
+
+        function copyAllURIs(uriText, elementId) {
+            // Decode escaped newlines
+            const text = uriText.replace(/\\n/g, '\n').replace(/\\'/g, "'");
+            const element = document.getElementById(elementId);
+            if (!element) return;
+
+            const onSuccess = () => {
+                const originalText = element.textContent;
+                element.textContent = 'Copied!';
+                element.parentElement.style.background = '#4a7c59';
+                setTimeout(() => {
+                    element.textContent = originalText;
+                    element.parentElement.style.background = '';
+                }, 2000);
+            };
+
+            const onFailure = (err) => {
+                alert('Copy failed: ' + err.message);
+            };
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(onSuccess).catch(onFailure);
+            } else {
+                const tempInput = document.createElement('textarea');
+                tempInput.value = text;
+                tempInput.style.position = 'fixed';
+                tempInput.style.opacity = '0';
+                document.body.appendChild(tempInput);
+                tempInput.focus();
+                tempInput.select();
+                try {
+                    const successful = document.execCommand('copy');
+                    if (successful) {
+                        onSuccess();
+                    } else {
+                        onFailure(new Error('execCommand failed'));
+                    }
+                } catch (err) {
+                    onFailure(err);
+                } finally {
+                    document.body.removeChild(tempInput);
+                }
+            }
         }
 
         // Convert with real-time progress using SSE

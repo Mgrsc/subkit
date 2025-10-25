@@ -48,9 +48,14 @@ type ExtractNodesRequest struct {
 	Input string `json:"input"`
 }
 
+type NodeWithURI struct {
+	Node *converter.ProxyNode `json:"node"`
+	URI  string               `json:"uri"`
+}
+
 type ExtractNodesResponse struct {
-	Nodes []*converter.ProxyNode `json:"nodes"`
-	Count int                    `json:"count"`
+	Nodes []*NodeWithURI `json:"nodes"`
+	Count int            `json:"count"`
 }
 
 func NewServer() (*Server, error) {
@@ -382,9 +387,23 @@ func (s *Server) HandleExtractNodes(w http.ResponseWriter, r *http.Request) {
 
 	logger.Info("[Server] Successfully extracted %d nodes", len(nodes))
 
+	// Convert nodes to NodeWithURI format
+	nodesWithURI := make([]*NodeWithURI, 0, len(nodes))
+	for _, node := range nodes {
+		uri, err := converter.ProxyToUri(node)
+		if err != nil {
+			logger.Info("[Server] Failed to convert node %s to URI: %v", node.Name, err)
+			uri = "" // Set empty URI if conversion fails
+		}
+		nodesWithURI = append(nodesWithURI, &NodeWithURI{
+			Node: node,
+			URI:  uri,
+		})
+	}
+
 	resp := ExtractNodesResponse{
-		Nodes: nodes,
-		Count: len(nodes),
+		Nodes: nodesWithURI,
+		Count: len(nodesWithURI),
 	}
 
 	w.Header().Set("Content-Type", contentTypeJSON)
