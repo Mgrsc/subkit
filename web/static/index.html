@@ -465,6 +465,30 @@
             showResult(resultEl, 'success', html);
         }
 
+        function cleanURIInput() {
+            const textarea = document.getElementById('uriInput');
+            const lines = textarea.value.split('\n');
+            const cleanedLines = lines.map(line => line.trim()).filter(line => line);
+            const cursorPos = textarea.selectionStart;
+
+            if (cleanedLines.join('\n') !== textarea.value.trim()) {
+                textarea.value = cleanedLines.join('\n');
+                const newCursorPos = Math.min(cursorPos, textarea.value.length);
+                textarea.setSelectionRange(newCursorPos, newCursorPos);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const uriInput = document.getElementById('uriInput');
+            if (uriInput) {
+                uriInput.addEventListener('paste', function() {
+                    setTimeout(cleanURIInput, 10);
+                });
+
+                uriInput.addEventListener('blur', cleanURIInput);
+            }
+        });
+
         async function convertURI() {
             const input = document.getElementById('uriInput').value.trim();
             const customReq = document.getElementById('uriCustomReq').value.trim();
