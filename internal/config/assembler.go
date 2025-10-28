@@ -144,7 +144,41 @@ func (a *Assembler) AssembleWithProgress(nodes []*converter.ProxyNode, customReq
 		return nil, fmt.Errorf("generate rules failed: %w", err)
 	}
 
+	// Notify frontend BEFORE starting assembly
+	if onProgress != nil {
+		onProgress("assemble")
+	}
+
 	logger.Info("[Assembler] Merging configurations...")
+	finalConfig, err := a.mergeConfiguration(nodes, proxyGroupsYAML, rulesYAML)
+	if err != nil {
+		return nil, fmt.Errorf("merge configuration failed: %w", err)
+	}
+
+	// Marshal initial configuration
+	configData, err := marshalYAML(finalConfig)
+	if err != nil {
+		return nil, fmt.Errorf("marshal config failed: %w", err)
+	}
+
+	// Notify frontend BEFORE starting validation
+	if onProgress != nil {
+		onProgress("validate")
+	}
+
+	logger.Info("[Assembler] Validating configuration...")
+	// Perform validation and correction loop
+	configData, err = a.validateAndCorrect(configData, proxyGroupsYAML, customRequirements)
+	if err != nil {
+		return nil, fmt.Errorf("validation and correction failed: %w", err)
+	}
+
+	logger.Info("[Assembler] Configuration assembly completed successfully")
+	return configData, nil
+}
+
+// mergeConfiguration merges all configuration sections
+func (a *Assembler) mergeConfiguration(nodes []*converter.ProxyNode, proxyGroupsYAML, rulesYAML string) (map[string]interface{}, error) {
 	finalConfig := make(map[string]interface{})
 
 	for k, v := range a.globalConfig {
@@ -186,11 +220,142 @@ func (a *Assembler) AssembleWithProgress(nodes []*converter.ProxyNode, customReq
 		logger.Info("[Assembler] Warning: Failed to parse rule-providers: %v", err)
 	}
 
-	logger.Info("[Assembler] Configuration assembly completed successfully")
-	if onProgress != nil {
-		onProgress("assemble")
+	return finalConfig, nil
+}
+
+// validateAndCorrect validates configuration and corrects issues using LLM
+func (a *Assembler) validateAndCorrect(configData []byte, proxyGroupsYAML, customRequirements string) ([]byte, error) {
+	const maxRetries = 3
+
+	// Ensure rules are loaded
+	a.ensureRulesLoaded()
+
+	// Safely read rule lists
+	a.rulesMu.RLock()
+	geoipFiles := a.geoipFiles
+	geositeFiles := a.geositeFiles
+	a.rulesMu.RUnlock()
+
+	// Create validator
+	validator := NewConfigValidator(geoipFiles, geositeFiles)
+
+	for retry := 0; retry < maxRetries; retry++ {
+		// Validate configuration
+		result, err := validator.Validate(configData)
+		if err != nil {
+			return nil, fmt.Errorf("validation failed: %w", err)
+		}
+
+		// If no errors, return the configuration
+		if !result.HasErrors {
+			logger.Info("[Assembler] Configuration validation passed successfully")
+			return configData, nil
+		}
+
+		// Log validation errors
+		logger.Info("[Assembler] Validation found %d error(s), attempting correction (retry %d/%d)", len(result.Errors), retry+1, maxRetries)
+		logger.Info("[Assembler] Validation errors:\n%s", result.ErrorMessage)
+
+		// Try to correct using LLM
+		correctedYAML, err := a.correctConfiguration(string(configData), proxyGroupsYAML, result.ErrorMessage, customRequirements)
+		if err != nil {
+			logger.Info("[Assembler] Warning: LLM correction failed: %v", err)
+			// If it's the last retry, return the original config with a warning
+			if retry == maxRetries-1 {
+				logger.Info("[Assembler] Max retries reached, returning configuration with validation warnings")
+				return configData, nil
+			}
+			continue
+		}
+
+		// Update configData with corrected version
+		configData = []byte(correctedYAML)
+		logger.Info("[Assembler] Applied LLM corrections, re-validating...")
 	}
-	return marshalYAML(finalConfig)
+
+	// If we exhausted retries, return the last version
+	logger.Info("[Assembler] Validation completed with warnings after %d attempts", maxRetries)
+	return configData, nil
+}
+
+// correctConfiguration uses LLM to fix configuration validation errors
+func (a *Assembler) correctConfiguration(currentConfig, proxyGroupsYAML, validationError, customRequirements string) (string, error) {
+	logger.Info("[Assembler] Requesting LLM to correct configuration errors...")
+
+	systemPrompt := `You are an expert in Mihomo (Clash Meta) proxy configuration.
+Your task is to fix configuration errors based on validation feedback.
+
+Rules:
+1. Fix ONLY the specific issues mentioned in the validation errors
+2. Maintain all existing proxy-groups and their configurations
+3. Use only files that exist in the available GeoIP/GeoSite lists
+4. Ensure all rules reference valid rule-providers and proxy-groups
+5. Return the COMPLETE corrected configuration in YAML format
+6. Do not remove or modify working sections
+
+Output the complete corrected YAML configuration, starting with the top-level keys.`
+
+	userPrompt := fmt.Sprintf(`Current configuration has validation errors. Please fix them.
+
+Proxy Groups (for reference):
+%s
+
+Validation Errors:
+%s
+
+Current Configuration:
+%s
+
+Custom Requirements: %s
+
+Please output the COMPLETE corrected configuration in valid YAML format.`,
+		proxyGroupsYAML,
+		validationError,
+		currentConfig,
+		func() string {
+			if customRequirements != "" {
+				return customRequirements
+			}
+			return "None"
+		}())
+
+	messages := []llm.ChatMessage{
+		{Role: "system", Content: systemPrompt},
+		{Role: "user", Content: userPrompt},
+	}
+
+	correctedYAML, err := a.llmClient.Chat(messages)
+	if err != nil {
+		return "", fmt.Errorf("LLM chat failed: %w", err)
+	}
+
+	// Extract YAML content if wrapped in code blocks
+	correctedYAML = extractYAMLContent(correctedYAML)
+
+	logger.Info("[Assembler] LLM correction completed")
+	return correctedYAML, nil
+}
+
+// extractYAMLContent extracts YAML from markdown code blocks if present
+func extractYAMLContent(content string) string {
+	// Remove markdown code blocks if present
+	content = strings.TrimSpace(content)
+
+	// Check for ```yaml or ``` code blocks
+	if strings.HasPrefix(content, "```yaml") {
+		content = strings.TrimPrefix(content, "```yaml")
+		content = strings.TrimSpace(content)
+	} else if strings.HasPrefix(content, "```") {
+		content = strings.TrimPrefix(content, "```")
+		content = strings.TrimSpace(content)
+	}
+
+	if strings.HasSuffix(content, "```") {
+		content = strings.TrimSuffix(content, "```")
+		content = strings.TrimSpace(content)
+	}
+
+	return content
 }
 
 func marshalYAML(v interface{}) ([]byte, error) {

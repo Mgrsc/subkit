@@ -332,6 +332,10 @@
                         <div class="progress-icon">⏳</div>
                         <span>Assembling final configuration</span>
                     </div>
+                    <div class="progress-step" id="uri-step-validate">
+                        <div class="progress-icon">⏳</div>
+                        <span>Validating configuration</span>
+                    </div>
                 </div>
             </div>
 
@@ -530,7 +534,7 @@
         }
 
         function resetSteps(prefix) {
-            ['parse', 'groups', 'rules', 'assemble'].forEach(step => {
+            ['parse', 'groups', 'rules', 'assemble', 'validate'].forEach(step => {
                 const el = document.getElementById(prefix + step);
                 el.className = 'progress-step';
                 el.querySelector('.progress-icon').innerHTML = '⏳';
@@ -559,7 +563,7 @@
         }
 
         function completeAllSteps(prefix) {
-            ['parse', 'groups', 'rules', 'assemble'].forEach(step => {
+            ['parse', 'groups', 'rules', 'assemble', 'validate'].forEach(step => {
                 const el = document.getElementById(prefix + step);
                 el.className = 'progress-step completed';
                 el.querySelector('.progress-icon').innerHTML = '✓';
@@ -567,7 +571,7 @@
         }
 
         function errorAllSteps(prefix) {
-            ['parse', 'groups', 'rules', 'assemble'].forEach(step => {
+            ['parse', 'groups', 'rules', 'assemble', 'validate'].forEach(step => {
                 const el = document.getElementById(prefix + step);
                 if (el.classList.contains('active')) {
                     el.className = 'progress-step error';
@@ -838,7 +842,7 @@
         }
 
         function updateStepProgress(prefix, step) {
-            const steps = ['parse', 'groups', 'rules', 'assemble'];
+            const steps = ['parse', 'groups', 'rules', 'assemble', 'validate'];
             const stepIndex = steps.indexOf(step);
 
             if (stepIndex === -1) return;
@@ -855,7 +859,7 @@
             currentEl.classList.remove('completed');
             currentEl.querySelector('.progress-icon').innerHTML = '<div class="loading"></div>';
 
-            if (step === 'assemble') {
+            if (step === 'validate') {
                 setTimeout(() => {
                     currentEl.classList.remove('active');
                     currentEl.classList.add('completed');
